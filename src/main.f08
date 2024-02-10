@@ -16,6 +16,7 @@
 !
 
 program plot
+        use image_out
         implicit none
        
         real :: x
@@ -38,7 +39,7 @@ program plot
         real :: min_color
 
         character(len=10) :: header
-        character(len=19) :: filename
+        character(len=25) :: filename
 
         integer :: unit
 
@@ -47,47 +48,50 @@ program plot
         
         step = (abs(start) + abs(quit)) / steps
         
-        write(header, '(I4, A, I4)') steps, ' ', steps
+        !call pfm_header_compute(header, steps)
 
-        !$OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit) FIRSTPRIVATE(header, min_color, max_color)
-        do k=1, steps
+        ! $OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit) FIRSTPRIVATE(header, min_color, max_color)
+        do k=1, 1
 
-        im = start + (k * step)
-        write(filename, '(A, I4.4, A)') 'output/out', k, '.pfm'
-
-        open(newunit=unit, file=filename, access="stream", form="unformatted")
-        write(unit) 'PF', 10
-        write(unit, pos=4) header
-        !write(9) steps, ' ', steps, 10
-        write(unit, pos=13) 10
-        write(header, '(F10.6)') -1.0
-        write(unit, pos=14) header
-        write(unit, pos=24) 10
-        write(unit, pos=25)
+        !im = start + (k * step)
+        im = 0
+        
+        !call pfm_open(filename, k, unit)
+        call tiff_open(filename, k, unit)
+        !call pfm_header(unit, header)
+        call tiff_header(unit, steps)
         
         do i=1, steps
-                y = start + (i * step)
+                y = quit - (i * step)
+
+                call tiff_begin(unit, steps)
 
                 do j=1, steps
-                        x = start + (j * step)
+                        x = quit - (j * step)
+                        
+                        r = 0.0
+                        g = 0.0
+                        b = 0.0
 
                         !z = complex(x, y)
                         
-                        z = taubin_heart(complex(x, im), complex(y, im))
-
+                        !z = taubin_heart(complex(1, im), complex(1, im))
+                        z = 1
                         if (x .gt. -0.01 .and. x .lt. 0.01) then
-                                write(unit) 0.0
-                                write(unit) 0.0
-                                write(unit) 0.0
+                                !call pfm_write(unit, 0.0, 0.0, 0.0)
+                                call domain_color_luv(0.0, 0.0, r, g, b)
+                                call tiff_write(r, g, b)
+
                         else if (y .gt. -0.01 .and. y .lt. 0.01) then
-                                write(unit) 0.0
-                                write(unit) 0.0
-                                write(unit) 0.0
+                                !call pfm_write(unit, 0.0, 0.0, 0.0)
+                                call domain_color_luv(0.0, 0.0, r, g, b)
+                                call tiff_write(r, g, b)
+
                         else
                                 call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
-                                write(unit) r
-                                write(unit) g
-                                write(unit) b
+
+                                !call pfm_write(unit, r, g, b)
+                                call tiff_write(r, g, b)
                                 
                                 max_color = max(max_color, r)
                                 max_color = max(max_color, g)
@@ -98,11 +102,15 @@ program plot
                                 min_color = min(min_color, b)
                         end if        
                 end do
+
+                call tiff_commit(unit)
         end do
 
-        write(unit) 10
+        !call pfm_end(unit)
+        call tiff_end(unit, steps)
 
-        close(unit)
+        !call pfm_close(unit)
+        call tiff_close(unit)
 
         print *, filename
 
@@ -112,7 +120,7 @@ program plot
         print *, ''
 
         end do
-        !$OMP END PARALLEL DO
+        ! $OMP END PARALLEL DO
 contains
         subroutine domain_color_lab(mod, arg, r, g, b)
                 real, intent(in) :: mod
