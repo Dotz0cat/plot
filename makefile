@@ -1,8 +1,8 @@
 FC = gfortran
 CFLAGS := -O2 -g -Wall -fopenmp 
 #-fsanitize=address
-#CPPFLAGS = $(shell pkg-config --cflags)
-#LDLIBS = $(shell pkg-config --libs)
+CPPFLAGS = $(shell pkg-config --cflags blas fortran-zlib)
+LDLIBS = $(shell pkg-config --libs blas fortran-zlib)
 
 SRCDIR = src
 OBJDIR = obj

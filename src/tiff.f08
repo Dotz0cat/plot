@@ -17,6 +17,8 @@
 
 submodule (image_out) tiff
         use iso_fortran_env, only: int8, int16, int32, real32
+        use iso_c_binding, only: c_loc
+        use zlib
         implicit none
 
         type :: tiff_tag
@@ -26,15 +28,16 @@ submodule (image_out) tiff
                 integer(kind=int32) :: offset
         end type 
 
-        real, allocatable :: scanline(:, :)
-        real, allocatable :: lines(:)
+        real, allocatable, target :: scanline(:, :)
+        integer, allocatable :: lines(:)
+        integer, allocatable :: line_bytes(:)
         integer :: counter, line_counter
 
         real(kind=real32) :: min_r, min_g, min_b
         real(kind=real32) :: max_r, max_g, max_b
 
-        integer(kind=int32) :: strip_loc, xres_loc, yres_loc, min_loc, max_loc, white_loc, count_loc
-        integer(kind=int32) :: strip_tag, xres_tag, yres_tag, min_tag, max_tag, white_tag, count_tag
+        integer(kind=int32) :: strip_loc, xres_loc, yres_loc, min_loc, max_loc, white_loc, count_loc, sample_loc
+        integer(kind=int32) :: strip_tag, xres_tag, yres_tag, min_tag, max_tag, white_tag, count_tag, sample_tag
 
 contains
         module procedure tiff_open
@@ -73,11 +76,13 @@ contains
                 write(unit) tiff_tag(257, 3, 1, size)
 
                 ! bits per sample tag
-                write(unit) tiff_tag(258, 3, 1, 32)
+                write(unit) tiff_tag(258, 3, 3, 0)
+                inquire(unit, pos=sample_tag)
+                sample_tag = sample_tag - 4
                 
                 ! compression
                 ! will be edited later
-                write(unit) tiff_tag(259, 3, 1, 1)
+                write(unit) tiff_tag(259, 3, 1, 8)
 
                 ! photometric interpation tag
                 write(unit) tiff_tag(262, 3, 1, 2)
@@ -151,9 +156,12 @@ contains
                 write(unit) int(3127, kind=int32), int(10000, kind=int32)
                 write(unit) int(3290, kind=int32), int(10000, kind=int32)
 
+                inquire(unit, pos=sample_loc)
+                write(unit) int(32, kind=int16), int(32, kind=int16), int(32, kind=int16)
+
                 inquire(unit, pos=count_loc)
                 do i=1, size
-                        write(unit) int(size*12, kind=int32)
+                        write(unit) int(0, kind=int32)
                 end do
 
                 inquire(unit, pos=strip_loc)
@@ -168,12 +176,14 @@ contains
                 write(unit, pos=xres_tag) int(xres_loc-1, kind=int32)
                 write(unit, pos=yres_tag) int(yres_loc-1, kind=int32)
                 write(unit, pos=white_tag) int(white_loc-1, kind=int32)
+                write(unit, pos=sample_tag) int(sample_loc-1, kind=int32)
                 write(unit, pos=count_tag) int(count_loc-1, kind=int32)
 
                 write(unit, pos=strip_tag) int(strip_loc-1, kind=int32)
                 write(unit, pos=current)
 
                 allocate(lines(size))
+                allocate(line_bytes(size))
                 line_counter = 1
 
         end procedure tiff_header
@@ -184,7 +194,7 @@ contains
                         return
                 end if
 
-                allocate(scanline(size, 3))
+                allocate(scanline(3, size))
                 
                 counter = 1;
                 ! scanline header
@@ -198,15 +208,15 @@ contains
                         return
                 end if
 
-                scanline(counter, 1) = r
+                scanline(1, counter) = r
                 min_r = min(min_r, r)
                 max_r = max(max_r, r)
 
-                scanline(counter, 2) = g
+                scanline(2, counter) = g
                 min_g = min(min_g, g)
                 max_g = max(max_g, g)
 
-                scanline(counter, 3) = b
+                scanline(3, counter) = b
                 min_b = min(min_b, b)
                 max_b = max(max_b, b)
 
@@ -216,22 +226,52 @@ contains
         module procedure tiff_commit
                 integer :: i
                 integer :: current
+                integer :: rc, error
+                character(len=sizeof(scanline)), target :: compressed
+                real, pointer :: scanline_ptr(:,:)
+                type(z_stream) :: stream
                 
                 if (.not. allocated(scanline)) then
                         print *, 'error: calling tiff commit without calling tiff_begin'
                         return
                 end if
 
+                scanline_ptr => scanline
+
                 inquire(unit, pos=current)
                 lines(line_counter) = current - 1
                 
+                !line_bytes(line_counter) = sizeof(scanline)
+
                 counter = counter - 1
 
                 ! write stuff
-                do i=1, counter
-                        write(unit) real(scanline(i, 1), kind=real32), real(scanline(i, 2), kind=real32), &
-                        & real(scanline(i, 3), kind=real32)
-                end do
+                !do i=1, counter
+                !        write(unit) real(scanline(i, 1), kind=real32), real(scanline(i, 2), kind=real32), &
+                !        & real(scanline(i, 3), kind=real32)
+                !end do
+
+                rc = deflate_init(stream, Z_DEFAULT_COMPRESSION)
+                if (rc .ne. Z_OK) return
+
+                stream%total_in = sizeof(scanline_ptr)
+                stream%avail_in = sizeof(scanline_ptr)
+                stream%next_in = c_loc(scanline_ptr)
+
+                stream%total_out = len(compressed)
+                stream%avail_out = len(compressed)
+                stream%next_out = c_loc(compressed)
+
+                rc = deflate(stream, Z_FINISH)
+                if (rc .ne. Z_STREAM_END) then
+                        error = deflate_end(stream)
+                        print *, error
+                        return
+                end if
+
+                line_bytes(line_counter) = len(compressed) - stream%avail_out
+
+                write(unit) compressed(1:line_bytes(line_counter))
 
                 deallocate(scanline)
                 counter = 1
@@ -241,6 +281,7 @@ contains
         module procedure tiff_end
                 integer :: current
                 integer :: i
+                integer :: j
                 
                 inquire(unit, pos=current)
                 write(unit, pos=min_loc) real(min_r, kind=real32), real(min_g, kind=real32), real(min_b, kind=real32)
@@ -253,6 +294,11 @@ contains
 
                 do i=1, line_counter
                         write(unit) int(lines(i), kind=int32)
+                end do
+                
+                write(unit, pos=count_loc)
+                do j=1, line_counter
+                        write(unit) int(line_bytes(j), kind=int32)
                 end do
 
                 write(unit, pos=current)

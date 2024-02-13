@@ -67,25 +67,19 @@ program plot
                 call tiff_begin(unit, steps)
 
                 do j=1, steps
-                        x = quit - (j * step)
+                        x = start + (j * step)
                         
-                        r = 0.0
-                        g = 0.0
-                        b = 0.0
-
                         !z = complex(x, y)
                         
-                        !z = taubin_heart(complex(1, im), complex(1, im))
-                        z = 1
+                        z = taubin_heart(complex(x, im), complex(y, im))
+
                         if (x .gt. -0.01 .and. x .lt. 0.01) then
                                 !call pfm_write(unit, 0.0, 0.0, 0.0)
-                                call domain_color_luv(0.0, 0.0, r, g, b)
-                                call tiff_write(r, g, b)
+                                call tiff_write(0.0, 0.0, 0.0)
 
                         else if (y .gt. -0.01 .and. y .lt. 0.01) then
                                 !call pfm_write(unit, 0.0, 0.0, 0.0)
-                                call domain_color_luv(0.0, 0.0, r, g, b)
-                                call tiff_write(r, g, b)
+                                call tiff_write(0.0, 0.0, 0.0)
 
                         else
                                 call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
