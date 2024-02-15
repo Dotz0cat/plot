@@ -38,33 +38,32 @@ program plot
         real :: max_color
         real :: min_color
 
-        character(len=10) :: header
         character(len=25) :: filename
-
+        
         integer :: unit
+
+        type(tiff), allocatable :: tiff_obj
 
         max_color = 0
         min_color = 0
         
         step = (abs(start) + abs(quit)) / steps
         
-        !call pfm_header_compute(header, steps)
-
-        ! $OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit) FIRSTPRIVATE(header, min_color, max_color)
+        !$OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit, tiff_obj) FIRSTPRIVATE(min_color, max_color)
         do k=1, 1
+
+        allocate(tiff_obj)
 
         !im = start + (k * step)
         im = 0
         
-        !call pfm_open(filename, k, unit)
-        call tiff_open(filename, k, unit)
-        !call pfm_header(unit, header)
-        call tiff_header(unit, steps)
+        call tiff_obj%open(filename, k, unit)
+        call tiff_obj%header(unit, steps)
         
         do i=1, steps
                 y = quit - (i * step)
 
-                call tiff_begin(unit, steps)
+                call tiff_obj%begin(unit, steps)
 
                 do j=1, steps
                         x = start + (j * step)
@@ -72,20 +71,21 @@ program plot
                         !z = complex(x, y)
                         
                         z = taubin_heart(complex(x, im), complex(y, im))
+                        !z = taubin_heart_gradient(complex(x, im), complex(y, im))
 
                         if (x .gt. -0.01 .and. x .lt. 0.01) then
                                 !call pfm_write(unit, 0.0, 0.0, 0.0)
-                                call tiff_write(0.0, 0.0, 0.0)
+                                call tiff_obj%write(0.0, 0.0, 0.0)
 
                         else if (y .gt. -0.01 .and. y .lt. 0.01) then
                                 !call pfm_write(unit, 0.0, 0.0, 0.0)
-                                call tiff_write(0.0, 0.0, 0.0)
+                                call tiff_obj%write(0.0, 0.0, 0.0)
 
                         else
                                 call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
 
                                 !call pfm_write(unit, r, g, b)
-                                call tiff_write(r, g, b)
+                                call tiff_obj%write(r, g, b)
                                 
                                 max_color = max(max_color, r)
                                 max_color = max(max_color, g)
@@ -97,14 +97,14 @@ program plot
                         end if        
                 end do
 
-                call tiff_commit(unit)
+                call tiff_obj%commit(unit)
         end do
 
         !call pfm_end(unit)
-        call tiff_end(unit, steps)
+        call tiff_obj%end(unit, steps)
 
         !call pfm_close(unit)
-        call tiff_close(unit)
+        call tiff_obj%close(unit)
 
         print *, filename
 
@@ -112,9 +112,11 @@ program plot
         print *, 'min: ', min_color
 
         print *, ''
+        
+        deallocate(tiff_obj)
 
         end do
-        ! $OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
 contains
         subroutine domain_color_lab(mod, arg, r, g, b)
                 real, intent(in) :: mod
@@ -285,5 +287,18 @@ contains
                 z = x**2 + y**2
 
         end function unit_circle
+
+        complex function taubin_heart_gradient(x, y) result (z)
+                complex, intent(in) :: x, y
+
+                z%re = 65.0*(x**5.0) + 12.0 * ((x**3.0) * (y**2.0)) - 12.0 * (y**3.0) &
+                        & + 6.0 * x + 6.0 * (x * (y**4.0)) + 12.0 * (x * (y**2.0)) &
+                        & - 2.0 * (x * (y**3.0))
+                
+                z%im = 65.0*(y**5.0) + 12.0 * ((y**3.0) * (x**2.0)) - 12.0 * (x**3.0) &
+                        & + 6.0 * y + 6.0 * (y * (x**4.0)) + 12.0 * (y * (x**2.0)) &
+                        & - 3.0 * ((x**2.0) * (y**2.0))
+
+        end function taubin_heart_gradient
 end program plot
 
