@@ -30,6 +30,11 @@ module image_out
         
         type, public :: tiff
                 private
+                character(len=:), public, allocatable :: filename
+                integer, public :: unit
+
+                integer, public :: x_size, y_size
+
                 real, dimension(:,:), pointer :: scanline => NULL()
                 integer, allocatable :: lines(:)
                 integer, allocatable :: line_bytes(:)
@@ -109,27 +114,21 @@ module image_out
         end interface pfm_close
 
         interface tiff_open
-                module subroutine tiff_open(this, filename, number, unit)
+                module subroutine tiff_open(this, number)
                         class(tiff), intent(inout) :: this
-                        character(len=*), intent(out) :: filename
                         integer, intent(in) :: number
-                        integer, intent(out) :: unit
                 end subroutine tiff_open
         end interface tiff_open
 
         interface tiff_header
-                module subroutine tiff_header(this, unit, size)
+                module subroutine tiff_header(this)
                         class(tiff), intent(inout) :: this
-                        integer, intent(in) :: unit
-                        integer, intent(in) :: size
                 end subroutine tiff_header
         end interface tiff_header
 
         interface tiff_begin
-                module subroutine tiff_begin(this, unit, size)
+                module subroutine tiff_begin(this)
                         class(tiff), intent(inout) :: this
-                        integer, intent(in) :: unit
-                        integer, intent(in) :: size
                 end subroutine tiff_begin
         end interface tiff_begin
 
@@ -141,24 +140,20 @@ module image_out
         end interface tiff_write
 
         interface tiff_commit
-                module subroutine tiff_commit(this, unit)
+                module subroutine tiff_commit(this)
                         class(tiff), intent(inout) :: this
-                        integer, intent(in) :: unit
                 end subroutine tiff_commit
         end interface tiff_commit
 
         interface tiff_end
-                module subroutine tiff_end(this, unit, size)
+                module subroutine tiff_end(this)
                         class(tiff), intent(inout) :: this
-                        integer, intent(in) :: unit
-                        integer, intent(in) :: size
                 end subroutine tiff_end
         end interface tiff_end
 
         interface tiff_close
-                module subroutine tiff_close(this, unit)
+                module subroutine tiff_close(this)
                         class(tiff), intent(inout) :: this
-                        integer, intent(in) :: unit
                 end subroutine tiff_close
         end interface tiff_close
 

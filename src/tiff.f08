@@ -28,35 +28,18 @@ submodule (image_out) tiff
                 integer(kind=int32) :: offset
         end type 
 
-        !real, allocatable, target :: scanline(:, :)
-        !integer, allocatable :: lines(:)
-        !integer, allocatable :: line_bytes(:)
-        !integer :: counter, line_counter
-
-        !real(kind=real32) :: min_r, min_g, min_b
-        !real(kind=real32) :: max_r, max_g, max_b
-
-        !integer(kind=int32) :: strip_loc, xres_loc, yres_loc, min_loc, max_loc, white_loc, count_loc, sample_loc
-        !integer(kind=int32) :: strip_tag, xres_tag, yres_tag, min_tag, max_tag, white_tag, count_tag, sample_tag
-
 contains
         module procedure tiff_open
-                write(filename, '(A, I0.4, A)') 'output/out', number, '.tiff'
+                this%filename = 'output/out0000.tiff'
+                write(this%filename, '(A, I0.4, A)') 'output/out', number, '.tiff'
 
-                open(newunit=unit, file=filename, access="stream", form="unformatted", status="replace")
+                open(newunit=this%unit, file=this%filename, access="stream", form="unformatted", status="replace")
                 
-                this%min_r = 0
-                this%min_g = 0
-                this%min_b = 0
-                this%max_r = 0
-                this%max_g = 0
-                this%max_b = 0
-
         end procedure tiff_open
 
         module procedure tiff_close
                 deallocate(this%lines)
-                close(unit)
+                close(this%unit)
         end procedure tiff_close
 
         module procedure tiff_header
@@ -64,126 +47,126 @@ contains
                 integer :: current
 
                 ! file header
-                write(unit) 'II', int(42, kind=int16), int(8, kind=int32)
+                write(this%unit) 'II', int(42, kind=int16), int(8, kind=int32)
                 
                 ! IFD header
-                write(unit) int(17, kind=int16)
+                write(this%unit) int(17, kind=int16)
 
                 ! Width tag
-                write(unit) tiff_tag(256, 3, 1, size)
+                write(this%unit) tiff_tag(256, 3, 1, this%x_size)
                 
                 ! length tag
-                write(unit) tiff_tag(257, 3, 1, size)
+                write(this%unit) tiff_tag(257, 3, 1, this%y_size)
 
                 ! bits per sample tag
-                write(unit) tiff_tag(258, 3, 3, 0)
-                inquire(unit, pos=this%sample_tag)
+                write(this%unit) tiff_tag(258, 3, 3, 0)
+                inquire(this%unit, pos=this%sample_tag)
                 this%sample_tag = this%sample_tag - 4
                 
                 ! compression
                 ! will be edited later
-                write(unit) tiff_tag(259, 3, 1, 8)
+                write(this%unit) tiff_tag(259, 3, 1, 8)
 
                 ! photometric interpation tag
-                write(unit) tiff_tag(262, 3, 1, 2)
+                write(this%unit) tiff_tag(262, 3, 1, 2)
                 
                 ! strip offsets
-                write(unit) tiff_tag(273, 4, size, 0)
-                inquire(unit, pos=this%strip_tag)
+                write(this%unit) tiff_tag(273, 4, this%y_size, 0)
+                inquire(this%unit, pos=this%strip_tag)
                 this%strip_tag = this%strip_tag - 4
 
                 ! samples per pixel
-                write(unit) tiff_tag(277, 3, 1, 3)
+                write(this%unit) tiff_tag(277, 3, 1, 3)
 
                 ! rows per strip
-                write(unit) tiff_tag(278, 3, 1, 1)
+                write(this%unit) tiff_tag(278, 3, 1, 1)
 
                 ! strip byte counts
-                write(unit) tiff_tag(279, 4, size, 0)
-                inquire(unit, pos=this%count_tag)
+                write(this%unit) tiff_tag(279, 4, this%y_size, 0)
+                inquire(this%unit, pos=this%count_tag)
                 this%count_tag = this%count_tag - 4
                 
                 ! xres
-                write(unit) tiff_tag(282, 5, 1, 0)
-                inquire(unit, pos=this%xres_tag)
+                write(this%unit) tiff_tag(282, 5, 1, 0)
+                inquire(this%unit, pos=this%xres_tag)
                 this%xres_tag = this%xres_tag - 4
 
                 ! yres
-                write(unit) tiff_tag(283, 5, 1, 0)
-                inquire(unit, pos=this%yres_tag)
+                write(this%unit) tiff_tag(283, 5, 1, 0)
+                inquire(this%unit, pos=this%yres_tag)
                 this%yres_tag = this%yres_tag - 4
 
                 ! planar config
-                write(unit) tiff_tag(284, 3, 1, 1)
+                write(this%unit) tiff_tag(284, 3, 1, 1)
                 
                 ! resolution unit
-                write(unit) tiff_tag(296, 3, 1, 1)
+                write(this%unit) tiff_tag(296, 3, 1, 1)
 
                 ! while point
                 ! d65
-                write(unit) tiff_tag(318, 5, 2, 0)
-                inquire(unit, pos=this%white_tag)
+                write(this%unit) tiff_tag(318, 5, 2, 0)
+                inquire(this%unit, pos=this%white_tag)
                 this%white_tag = this%white_tag - 4
 
                 ! sample format
-                write(unit) tiff_tag(339, 3, 1, 3)
+                write(this%unit) tiff_tag(339, 3, 1, 3)
                 
                 ! min sample value
-                write(unit) tiff_tag(340, 11, 3, 0)
-                inquire(unit, pos=this%min_tag)
+                write(this%unit) tiff_tag(340, 11, 3, 0)
+                inquire(this%unit, pos=this%min_tag)
                 this%min_tag = this%min_tag - 4
 
                 ! max sample value
-                write(unit) tiff_tag(341, 11, 3, 0)
-                inquire(unit, pos=this%max_tag)
+                write(this%unit) tiff_tag(341, 11, 3, 0)
+                inquire(this%unit, pos=this%max_tag)
                 this%max_tag = this%max_tag - 4
 
-                write(unit) int(0, kind=int32)
+                write(this%unit) int(0, kind=int32)
                 
-                inquire(unit, pos=this%min_loc)
-                write(unit) real(0, kind=real32), real(0, kind=real32), real(0, kind=real32)
+                inquire(this%unit, pos=this%min_loc)
+                write(this%unit) real(0, kind=real32), real(0, kind=real32), real(0, kind=real32)
                 
-                inquire(unit, pos=this%max_loc)
-                write(unit) real(0, kind=real32), real(0, kind=real32), real(0, kind=real32)
+                inquire(this%unit, pos=this%max_loc)
+                write(this%unit) real(0, kind=real32), real(0, kind=real32), real(0, kind=real32)
                 
-                inquire(unit, pos=this%xres_loc)
-                write(unit) int(size, kind=int32), int(1, kind=int32)
+                inquire(this%unit, pos=this%xres_loc)
+                write(this%unit) int(this%x_size, kind=int32), int(1, kind=int32)
 
-                inquire(unit, pos=this%yres_loc)
-                write(unit) int(size, kind=int32), int(1, kind=int32)
+                inquire(this%unit, pos=this%yres_loc)
+                write(this%unit) int(this%y_size, kind=int32), int(1, kind=int32)
 
-                inquire(unit, pos=this%white_loc)
-                write(unit) int(3127, kind=int32), int(10000, kind=int32)
-                write(unit) int(3290, kind=int32), int(10000, kind=int32)
+                inquire(this%unit, pos=this%white_loc)
+                write(this%unit) int(3127, kind=int32), int(10000, kind=int32)
+                write(this%unit) int(3290, kind=int32), int(10000, kind=int32)
 
-                inquire(unit, pos=this%sample_loc)
-                write(unit) int(32, kind=int16), int(32, kind=int16), int(32, kind=int16)
+                inquire(this%unit, pos=this%sample_loc)
+                write(this%unit) int(32, kind=int16), int(32, kind=int16), int(32, kind=int16)
 
-                inquire(unit, pos=this%count_loc)
-                do i=1, size
-                        write(unit) int(0, kind=int32)
+                inquire(this%unit, pos=this%count_loc)
+                do i=1, this%x_size
+                        write(this%unit) int(0, kind=int32)
                 end do
 
-                inquire(unit, pos=this%strip_loc)
-                do j=1, size
-                        write(unit) int(0, kind=int32)
+                inquire(this%unit, pos=this%strip_loc)
+                do j=1, this%y_size
+                        write(this%unit) int(0, kind=int32)
                 end do
 
-                inquire(unit, pos=current)
+                inquire(this%unit, pos=current)
 
-                write(unit, pos=this%min_tag) int(this%min_loc-1, kind=int32)
-                write(unit, pos=this%max_tag) int(this%max_loc-1, kind=int32)
-                write(unit, pos=this%xres_tag) int(this%xres_loc-1, kind=int32)
-                write(unit, pos=this%yres_tag) int(this%yres_loc-1, kind=int32)
-                write(unit, pos=this%white_tag) int(this%white_loc-1, kind=int32)
-                write(unit, pos=this%sample_tag) int(this%sample_loc-1, kind=int32)
-                write(unit, pos=this%count_tag) int(this%count_loc-1, kind=int32)
+                write(this%unit, pos=this%min_tag) int(this%min_loc-1, kind=int32)
+                write(this%unit, pos=this%max_tag) int(this%max_loc-1, kind=int32)
+                write(this%unit, pos=this%xres_tag) int(this%xres_loc-1, kind=int32)
+                write(this%unit, pos=this%yres_tag) int(this%yres_loc-1, kind=int32)
+                write(this%unit, pos=this%white_tag) int(this%white_loc-1, kind=int32)
+                write(this%unit, pos=this%sample_tag) int(this%sample_loc-1, kind=int32)
+                write(this%unit, pos=this%count_tag) int(this%count_loc-1, kind=int32)
 
-                write(unit, pos=this%strip_tag) int(this%strip_loc-1, kind=int32)
-                write(unit, pos=current)
+                write(this%unit, pos=this%strip_tag) int(this%strip_loc-1, kind=int32)
+                write(this%unit, pos=current)
 
-                allocate(this%lines(size))
-                allocate(this%line_bytes(size))
+                allocate(this%lines(this%y_size))
+                allocate(this%line_bytes(this%x_size))
                 this%line_counter = 1
 
         end procedure tiff_header
@@ -194,7 +177,7 @@ contains
                         return
                 end if
 
-                allocate(this%scanline(3, size))
+                allocate(this%scanline(3, this%x_size))
                 
                 this%counter = 1;
 
@@ -236,7 +219,7 @@ contains
 
                 scanline_ptr => this%scanline
 
-                inquire(unit, pos=current)
+                inquire(this%unit, pos=current)
                 this%lines(this%line_counter) = current - 1
                 
                 this%counter = this%counter - 1
@@ -261,7 +244,9 @@ contains
 
                 this%line_bytes(this%line_counter) = len(compressed) - stream%avail_out
 
-                write(unit) compressed(1:this%line_bytes(this%line_counter))
+                write(this%unit) compressed(1:this%line_bytes(this%line_counter))
+
+                error = deflate_end(stream)
 
                 deallocate(this%scanline)
                 this%counter = 1
@@ -273,27 +258,27 @@ contains
                 integer :: i
                 integer :: j
                 
-                inquire(unit, pos=current)
-                write(unit, pos=this%min_loc) real(this%min_r, kind=real32), real(this%min_g, kind=real32), &
+                inquire(this%unit, pos=current)
+                write(this%unit, pos=this%min_loc) real(this%min_r, kind=real32), real(this%min_g, kind=real32), &
                         & real(this%min_b, kind=real32)
-                write(unit, pos=this%max_loc) real(this%max_r, kind=real32), real(this%max_g, kind=real32), &
+                write(this%unit, pos=this%max_loc) real(this%max_r, kind=real32), real(this%max_g, kind=real32), &
                         & real(this%max_b, kind=real32)
                 
                 ! seek to stripsoffset array
-                write(unit, pos=this%strip_loc)
+                write(this%unit, pos=this%strip_loc)
 
                 this%line_counter = this%line_counter - 1
 
                 do i=1, this%line_counter
-                        write(unit) int(this%lines(i), kind=int32)
+                        write(this%unit) int(this%lines(i), kind=int32)
                 end do
                 
-                write(unit, pos=this%count_loc)
+                write(this%unit, pos=this%count_loc)
                 do j=1, this%line_counter
-                        write(unit) int(this%line_bytes(j), kind=int32)
+                        write(this%unit) int(this%line_bytes(j), kind=int32)
                 end do
 
-                write(unit, pos=current)
+                write(this%unit, pos=current)
         end procedure tiff_end
         
 end submodule tiff

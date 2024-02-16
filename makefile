@@ -1,5 +1,5 @@
 FC = gfortran
-CFLAGS := -O2 -g -Wall -fopenmp 
+CFLAGS := -O2 -g -Wall -fopenmp
 #-fsanitize=address
 CPPFLAGS = $(shell pkg-config --cflags blas fortran-zlib)
 LDLIBS = $(shell pkg-config --libs blas fortran-zlib)

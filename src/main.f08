@@ -38,10 +38,6 @@ program plot
         real :: max_color
         real :: min_color
 
-        character(len=25) :: filename
-        
-        integer :: unit
-
         type(tiff), allocatable :: tiff_obj
 
         max_color = 0
@@ -49,21 +45,24 @@ program plot
         
         step = (abs(start) + abs(quit)) / steps
         
-        !$OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit, tiff_obj) FIRSTPRIVATE(min_color, max_color)
+        !$OMP PARALLEL DO PRIVATE (x, y, i, j, tiff_obj) FIRSTPRIVATE(min_color, max_color)
         do k=1, 1
 
         allocate(tiff_obj)
 
+        tiff_obj%x_size = steps
+        tiff_obj%y_size = steps
+
         !im = start + (k * step)
         im = 0
         
-        call tiff_obj%open(filename, k, unit)
-        call tiff_obj%header(unit, steps)
+        call tiff_obj%open(k)
+        call tiff_obj%header()
         
         do i=1, steps
                 y = quit - (i * step)
 
-                call tiff_obj%begin(unit, steps)
+                call tiff_obj%begin()
 
                 do j=1, steps
                         x = start + (j * step)
@@ -74,17 +73,14 @@ program plot
                         !z = taubin_heart_gradient(complex(x, im), complex(y, im))
 
                         if (x .gt. -0.01 .and. x .lt. 0.01) then
-                                !call pfm_write(unit, 0.0, 0.0, 0.0)
                                 call tiff_obj%write(0.0, 0.0, 0.0)
 
                         else if (y .gt. -0.01 .and. y .lt. 0.01) then
-                                !call pfm_write(unit, 0.0, 0.0, 0.0)
                                 call tiff_obj%write(0.0, 0.0, 0.0)
 
                         else
                                 call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
 
-                                !call pfm_write(unit, r, g, b)
                                 call tiff_obj%write(r, g, b)
                                 
                                 max_color = max(max_color, r)
@@ -97,16 +93,14 @@ program plot
                         end if        
                 end do
 
-                call tiff_obj%commit(unit)
+                call tiff_obj%commit()
         end do
 
-        !call pfm_end(unit)
-        call tiff_obj%end(unit, steps)
+        call tiff_obj%end()
 
-        !call pfm_close(unit)
-        call tiff_obj%close(unit)
+        call tiff_obj%close()
 
-        print *, filename
+        print *, tiff_obj%filename
 
         print *, 'max: ', max_color
         print *, 'min: ', min_color
