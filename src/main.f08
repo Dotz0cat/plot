@@ -16,6 +16,7 @@
 !
 
 program plot
+        use image_out
         implicit none
        
         real :: x
@@ -37,57 +38,50 @@ program plot
         real :: max_color
         real :: min_color
 
-        character(len=10) :: header
-        character(len=19) :: filename
-
-        integer :: unit
+        type(tiff), allocatable :: tiff_obj
 
         max_color = 0
         min_color = 0
         
         step = (abs(start) + abs(quit)) / steps
         
-        write(header, '(I4, A, I4)') steps, ' ', steps
+        !$OMP PARALLEL DO PRIVATE (x, y, i, j, tiff_obj) FIRSTPRIVATE(min_color, max_color)
+        do k=1, 1
 
-        !$OMP PARALLEL DO PRIVATE (x, y, i, j, filename, unit) FIRSTPRIVATE(header, min_color, max_color)
-        do k=1, steps
+        allocate(tiff_obj)
 
-        im = start + (k * step)
-        write(filename, '(A, I4.4, A)') 'output/out', k, '.pfm'
+        tiff_obj%x_size = steps
+        tiff_obj%y_size = steps
 
-        open(newunit=unit, file=filename, access="stream", form="unformatted")
-        write(unit) 'PF', 10
-        write(unit, pos=4) header
-        !write(9) steps, ' ', steps, 10
-        write(unit, pos=13) 10
-        write(header, '(F10.6)') -1.0
-        write(unit, pos=14) header
-        write(unit, pos=24) 10
-        write(unit, pos=25)
+        !im = start + (k * step)
+        im = 0
+        
+        call tiff_obj%open(k)
+        call tiff_obj%header()
         
         do i=1, steps
-                y = start + (i * step)
+                y = quit - (i * step)
+
+                call tiff_obj%begin()
 
                 do j=1, steps
                         x = start + (j * step)
-
+                        
                         !z = complex(x, y)
                         
                         z = taubin_heart(complex(x, im), complex(y, im))
+                        !z = taubin_heart_gradient(complex(x, im), complex(y, im))
 
                         if (x .gt. -0.01 .and. x .lt. 0.01) then
-                                write(unit) 0.0
-                                write(unit) 0.0
-                                write(unit) 0.0
+                                call tiff_obj%write(0.0, 0.0, 0.0)
+
                         else if (y .gt. -0.01 .and. y .lt. 0.01) then
-                                write(unit) 0.0
-                                write(unit) 0.0
-                                write(unit) 0.0
+                                call tiff_obj%write(0.0, 0.0, 0.0)
+
                         else
                                 call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
-                                write(unit) r
-                                write(unit) g
-                                write(unit) b
+
+                                call tiff_obj%write(r, g, b)
                                 
                                 max_color = max(max_color, r)
                                 max_color = max(max_color, g)
@@ -98,18 +92,22 @@ program plot
                                 min_color = min(min_color, b)
                         end if        
                 end do
+
+                call tiff_obj%commit()
         end do
 
-        write(unit) 10
+        call tiff_obj%end()
 
-        close(unit)
+        call tiff_obj%close()
 
-        print *, filename
+        print *, tiff_obj%filename
 
         print *, 'max: ', max_color
         print *, 'min: ', min_color
 
         print *, ''
+        
+        deallocate(tiff_obj)
 
         end do
         !$OMP END PARALLEL DO
@@ -283,5 +281,18 @@ contains
                 z = x**2 + y**2
 
         end function unit_circle
+
+        complex function taubin_heart_gradient(x, y) result (z)
+                complex, intent(in) :: x, y
+
+                z%re = 65.0*(x**5.0) + 12.0 * ((x**3.0) * (y**2.0)) - 12.0 * (y**3.0) &
+                        & + 6.0 * x + 6.0 * (x * (y**4.0)) + 12.0 * (x * (y**2.0)) &
+                        & - 2.0 * (x * (y**3.0))
+                
+                z%im = 65.0*(y**5.0) + 12.0 * ((y**3.0) * (x**2.0)) - 12.0 * (x**3.0) &
+                        & + 6.0 * y + 6.0 * (y * (x**4.0)) + 12.0 * (y * (x**2.0)) &
+                        & - 3.0 * ((x**2.0) * (y**2.0))
+
+        end function taubin_heart_gradient
 end program plot
 
