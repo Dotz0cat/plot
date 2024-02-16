@@ -17,6 +17,8 @@
 
 program plot
         use image_out
+        use domain_color, only: domain_color_gamma_srgb
+        use test_functions
         implicit none
        
         real :: x
@@ -79,7 +81,7 @@ program plot
                                 call tiff_obj%write(0.0, 0.0, 0.0)
 
                         else
-                                call domain_color_luv(abs(z), atan2(z%im, z%re), r, g, b)
+                                call domain_color_gamma_srgb(abs(z), atan2(z%im, z%re), r, g, b)
 
                                 call tiff_obj%write(r, g, b)
                                 
@@ -111,188 +113,5 @@ program plot
 
         end do
         !$OMP END PARALLEL DO
-contains
-        subroutine domain_color_lab(mod, arg, r, g, b)
-                real, intent(in) :: mod
-                real, intent(in) :: arg
-                real, intent(out) :: r, g, b
-
-                real :: hue
-                real :: chroma
-                real :: lum
-                real :: a_vec
-                real :: b_vec
-                real, dimension(3) :: d65 = &
-                        & [0.95047, 1.0, 1.08883]
-                real, dimension(3) :: d65_scaled = &
-                        & [95.047, 100.0, 108.883]
-
-                real, dimension(3) :: rgb_vec, xyz_vec
-
-                real, dimension(3, 3) :: conv_vec = reshape( &
-                & [3.2404542, -1.5371385, -0.4985314, &
-                & -0.9692660, 1.8760108, 0.0415560, &
-                & 0.0556434, -0.2040259, 1.0572252], &
-                & [3, 3] )
-
-                hue = arg
-
-                chroma = mod
-
-                a_vec = chroma * cos(hue)
-                b_vec = chroma * sin(hue)
-
-                lum = chroma
-
-                xyz_vec(2) = piecewise_lab_y(lum)
-                xyz_vec(1) = piecewise_lab(a_vec/500.0 + xyz_vec(2))
-                xyz_vec(3) = piecewise_lab(xyz_vec(2) - b_vec/200.0)
-                
-                xyz_vec(1) = d65_scaled(1) * xyz_vec(1)
-                xyz_vec(2) = d65_scaled(2) * xyz_vec(2)
-                xyz_vec(3) = d65_scaled(3) * xyz_vec(3)
-
-                rgb_vec = matmul(xyz_vec,  conv_vec)
-
-                call srgb_companding(rgb_vec(1))
-                call srgb_companding(rgb_vec(2))
-                call srgb_companding(rgb_vec(3))
-                
-                r = rgb_vec(1)
-                g = rgb_vec(2)
-                b = rgb_vec(3)
-
-        end subroutine domain_color_lab
-
-        subroutine domain_color_luv(mod, arg, r, g, b)
-                real, intent(in) :: mod
-                real, intent(in) :: arg
-                real, intent(out) :: r, g, b
-
-                real :: hue
-                real :: chroma
-                real :: lum
-                real :: u_vec
-                real :: v_vec
-                real :: u_naught
-                real :: v_naught
-                real :: a, b2, c, d
-                real, dimension(3) :: d65 = &
-                        & [0.95047, 1.0, 1.08883]
-                real, dimension(3) :: d65_scaled = &
-                        & [95.047, 100.0, 108.883]
-
-                real, dimension(3) :: rgb_vec, xyz_vec
-
-                real, dimension(3, 3) :: conv_vec = reshape( &
-                & [3.2404542, -1.5371385, -0.4985314, &
-                & -0.9692660, 1.8760108, 0.0415560, &
-                & 0.0556434, -0.2040259, 1.0572252], &
-                & [3, 3] )
-
-                hue = arg
-
-                chroma = 50.0 * (sin(mod)**2.0) + 50.0
-
-                u_vec = chroma * cos(hue)
-                v_vec = chroma * sin(hue)
-
-                lum = 25.0 * (sin(mod)**2.0) + 25.0
-
-                u_naught = (4.0 * d65(1))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
-                v_naught = (9.0 * d65(2))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
-
-                xyz_vec(2) = piecewise_lab_y(lum)
-                
-                d = xyz_vec(2) * ((39.0 * lum)/(v_vec + (13.0 * lum * v_naught)) - 5)
-                b2 = -5.0 * xyz_vec(2)
-                a = (1.0/3.0) * ((52.0 * lum)/(u_vec + (13.0 * lum * u_naught)) - 1)
-                c = -(1.0/3.0)
-
-                xyz_vec(1) = (d - b2)/(a - c)
-                xyz_vec(3) = (xyz_vec(1) * a) + b2
-                
-                rgb_vec = matmul(xyz_vec,  conv_vec)
-
-                !call srgb_companding(rgb_vec(1))
-                !call srgb_companding(rgb_vec(2))
-                !call srgb_companding(rgb_vec(3))
-
-                r = rgb_vec(1)
-                g = rgb_vec(2)
-                b = rgb_vec(3)
-
-        end subroutine domain_color_luv
-
-        real function piecewise_lab(t) result(c)
-                real, intent(in) :: t
-                
-                real :: kappa = 24389.0/27.0
-                real :: delta = 216.0/24389.0
-                if (t**3.0 .gt. delta) then
-                        c = t**3.0
-                else
-                        c = ((116.0 * t) - 16)/kappa
-                end if
-        end function piecewise_lab
-
-        real function piecewise_lab_y(L) result(y)
-                real, intent(in) :: L
- 
-                real :: kappa = 24389.0/27.0
-                real :: delta = 216.0/24389.0
-                if (L .gt. (kappa * delta)) then
-                        y = ((L + 16.0)/116.0)**3
-                else
-                        y = L/kappa
-                end if
-        end function piecewise_lab_y
-
-        real function piecewise_luv(lum) result(y)
-                real, intent(in) :: lum 
-
-                if (lum .gt. 8) then
-                        y = ((lum + 16.0)/116.0)**3.0
-                else
-                        y = lum * (27.0/24389.0)
-                end if
-        end function piecewise_luv
-
-        subroutine srgb_companding(v)
-                real, intent(inout) :: v
-
-                if (v .gt. 0.0031308) then
-                        v = ((1.055 * v)**(1.0/2.4)) - 0.055
-                else
-                        v = 12.92 * v
-                end if
-        end subroutine srgb_companding
-
-        complex function taubin_heart(x, y) result(z)
-                complex, intent(in) :: x, y
-
-                z = ((x**2) + (y**2) - 1)**3 - ((x**2) * (y**3))
-
-        end function taubin_heart
-
-        complex function unit_circle(x, y) result(z)
-                complex, intent(in) :: x, y
-
-                z = x**2 + y**2
-
-        end function unit_circle
-
-        complex function taubin_heart_gradient(x, y) result (z)
-                complex, intent(in) :: x, y
-
-                z%re = 65.0*(x**5.0) + 12.0 * ((x**3.0) * (y**2.0)) - 12.0 * (y**3.0) &
-                        & + 6.0 * x + 6.0 * (x * (y**4.0)) + 12.0 * (x * (y**2.0)) &
-                        & - 2.0 * (x * (y**3.0))
-                
-                z%im = 65.0*(y**5.0) + 12.0 * ((y**3.0) * (x**2.0)) - 12.0 * (x**3.0) &
-                        & + 6.0 * y + 6.0 * (y * (x**4.0)) + 12.0 * (y * (x**2.0)) &
-                        & - 3.0 * ((x**2.0) * (y**2.0))
-
-        end function taubin_heart_gradient
 end program plot
 
