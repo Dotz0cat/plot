@@ -16,35 +16,35 @@
 !
 
 module domain_color
-        implicit none
+    implicit none
 
-        private
+    private
 
-        public :: domain_color_luv
-        public :: domain_color_srgb
-        public :: domain_color_gamma_srgb
+    public :: domain_color_luv
+    public :: domain_color_srgb
+    public :: domain_color_gamma_srgb
 
-        interface domain_color_luv
-                module subroutine domain_color_luv(mod, arg, l, u, v)
-                        real, intent(in) :: mod
-                        real, intent(in) :: arg
-                        real, intent(out) :: l, u, v
-                end subroutine domain_color_luv
-        end interface domain_color_luv
+    interface domain_color_luv
+        module subroutine domain_color_luv(mod, arg, l, u, v)
+            real, intent(in) :: mod
+            real, intent(in) :: arg
+            real, intent(out) :: l, u, v
+            end subroutine domain_color_luv
+    end interface domain_color_luv
 
-        interface domain_color_srgb
-                module subroutine domain_color_srgb(mod, arg, r, g, b)
-                        real, intent(in) :: mod
-                        real, intent(in) :: arg
-                        real, intent(out) :: r, g, b
-                end subroutine domain_color_srgb
-        end interface domain_color_srgb
+    interface domain_color_srgb
+        module subroutine domain_color_srgb(mod, arg, r, g, b)
+            real, intent(in) :: mod
+            real, intent(in) :: arg
+            real, intent(out) :: r, g, b
+        end subroutine domain_color_srgb
+    end interface domain_color_srgb
 
-        interface domain_color_gamma_srgb
-                module subroutine domain_color_gamma_srgb(mod, arg, r, g, b)
-                        real, intent(in) :: mod
-                        real, intent(in) :: arg
-                        real, intent(out) :: r, g, b
-                end subroutine domain_color_gamma_srgb
-        end interface domain_color_gamma_srgb
+    interface domain_color_gamma_srgb
+        module subroutine domain_color_gamma_srgb(mod, arg, r, g, b)
+            real, intent(in) :: mod
+            real, intent(in) :: arg
+            real, intent(out) :: r, g, b
+        end subroutine domain_color_gamma_srgb
+    end interface domain_color_gamma_srgb
 end module domain_color

@@ -16,39 +16,39 @@
 !
 
 program plot
-        use image_out
-        use domain_color, only: domain_color_gamma_srgb
-        use test_functions
-        implicit none
+    use image_out
+    use domain_color, only: domain_color_gamma_srgb
+    use test_functions
+    implicit none
        
-        real :: x
-        real :: y
-        complex :: z
-        real :: im
+    real :: x
+    real :: y
+    complex :: z
+    real :: im
 
-        real :: r, g, b
+    real :: r, g, b
 
-        real :: start = -2
-        real :: quit = 2
+    real :: start = -2
+    real :: quit = 2
 
-        integer :: i
-        integer :: j
-        integer :: k
-        integer :: steps = 2000
+    integer :: i
+    integer :: j
+    integer :: k
+    integer :: steps = 2000
         
-        real :: step
-        real :: max_color
-        real :: min_color
+    real :: step
+    real :: max_color
+    real :: min_color
 
-        type(tiff), allocatable :: tiff_obj
+    type(tiff), allocatable :: tiff_obj
 
-        max_color = 0
-        min_color = 0
+    max_color = 0
+    min_color = 0
         
-        step = (abs(start) + abs(quit)) / steps
+    step = (abs(start) + abs(quit)) / steps
         
-        !$OMP PARALLEL DO PRIVATE (x, y, i, j, tiff_obj) FIRSTPRIVATE(min_color, max_color)
-        do k=1, 1
+    !$OMP PARALLEL DO PRIVATE (x, y, i, j, im, tiff_obj) FIRSTPRIVATE(min_color, max_color)
+    do k=1, 1
 
         allocate(tiff_obj)
 
@@ -62,40 +62,45 @@ program plot
         call tiff_obj%header()
         
         do i=1, steps
-                y = quit - (i * step)
+            y = quit - (i * step)
 
-                call tiff_obj%begin()
-
-                do j=1, steps
-                        x = start + (j * step)
+            call tiff_obj%begin()
+                
+            !$OMP PARALLEL DO PRIVATE (x, j, z, r, g, b) SHARED (y, tiff_obj) &
+            !$OMP & REDUCTION(min: min_color) REDUCTION(max: max_color)
+            do j=1, steps
+                x = start + (j * step)
                         
-                        !z = complex(x, y)
+                !z = identity(x, y)
                         
-                        z = taubin_heart(complex(x, im), complex(y, im))
-                        !z = taubin_heart_gradient(complex(x, im), complex(y, im))
+                z = taubin_heart(complex(x, im), complex(y, im))
+                !z = taubin_heart_gradient(complex(x, im), complex(y, im))
 
-                        if (x .gt. -0.01 .and. x .lt. 0.01) then
-                                call tiff_obj%write(0.0, 0.0, 0.0)
+                r = 0.0
+                g = 0.0
+                b = 0.0
 
-                        else if (y .gt. -0.01 .and. y .lt. 0.01) then
-                                call tiff_obj%write(0.0, 0.0, 0.0)
+                if (x .gt. -0.01 .and. x .lt. 0.01) then
+                    call tiff_obj%write(0.0, 0.0, 0.0, j)
+                else if (y .gt. -0.01 .and. y .lt. 0.01) then
+                    call tiff_obj%write(0.0, 0.0, 0.0, j)
+                else
+                    call domain_color_gamma_srgb(abs(z), atan2(z%im, z%re), r, g, b)
 
-                        else
-                                call domain_color_gamma_srgb(abs(z), atan2(z%im, z%re), r, g, b)
+                    call tiff_obj%write(r, g, b, j)
+                    end if
 
-                                call tiff_obj%write(r, g, b)
-                                
-                                max_color = max(max_color, r)
-                                max_color = max(max_color, g)
-                                max_color = max(max_color, b)
-                                
-                                min_color = min(min_color, r)
-                                min_color = min(min_color, g)
-                                min_color = min(min_color, b)
-                        end if        
-                end do
+                    max_color = max(max_color, r)
+                    max_color = max(max_color, g)
+                    max_color = max(max_color, b)
+                        
+                    min_color = min(min_color, r)
+                    min_color = min(min_color, g)
+                    min_color = min(min_color, b)
+            end do
+            !$OMP END PARALLEL DO
 
-                call tiff_obj%commit()
+            call tiff_obj%commit()
         end do
 
         call tiff_obj%end()
@@ -111,7 +116,7 @@ program plot
         
         deallocate(tiff_obj)
 
-        end do
-        !$OMP END PARALLEL DO
+    end do
+    !$OMP END PARALLEL DO
 end program plot
 
