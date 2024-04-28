@@ -17,7 +17,7 @@
 
 program plot
     use image_out
-    use domain_color, only: domain_color_gamma_srgb
+    use domain_color
     use test_functions
     implicit none
        
@@ -26,7 +26,7 @@ program plot
     complex :: z
     real :: im
 
-    real :: r, g, b
+    real :: c1, c2, c3
 
     real :: start = -2
     real :: quit = 2
@@ -40,7 +40,7 @@ program plot
     real :: max_color
     real :: min_color
 
-    type(tiff), allocatable :: tiff_obj
+    type(tiff_logluv), allocatable :: tiff_obj
 
     max_color = 0
     min_color = 0
@@ -66,7 +66,7 @@ program plot
 
             call tiff_obj%begin()
                 
-            !$OMP PARALLEL DO PRIVATE (x, j, z, r, g, b) SHARED (y, tiff_obj) &
+            !$OMP PARALLEL DO PRIVATE (x, j, z, c1, c2, c3) SHARED (y, tiff_obj) &
             !$OMP & REDUCTION(min: min_color) REDUCTION(max: max_color)
             do j=1, steps
                 x = start + (j * step)
@@ -76,27 +76,27 @@ program plot
                 z = taubin_heart(complex(x, im), complex(y, im))
                 !z = taubin_heart_gradient(complex(x, im), complex(y, im))
 
-                r = 0.0
-                g = 0.0
-                b = 0.0
+                c1 = 0.0
+                c2 = 0.0
+                c3 = 0.0
 
                 if (x .gt. -0.01 .and. x .lt. 0.01) then
                     call tiff_obj%write(0.0, 0.0, 0.0, j)
                 else if (y .gt. -0.01 .and. y .lt. 0.01) then
                     call tiff_obj%write(0.0, 0.0, 0.0, j)
                 else
-                    call domain_color_gamma_srgb(abs(z), atan2(z%im, z%re), r, g, b)
+                    call domain_color_luv(abs(z), atan2(z%im, z%re), c1, c2, c3)
 
-                    call tiff_obj%write(r, g, b, j)
-                    end if
+                    call tiff_obj%write(c1, c2, c3, j)
+                end if
 
-                    max_color = max(max_color, r)
-                    max_color = max(max_color, g)
-                    max_color = max(max_color, b)
+                    max_color = max(max_color, c1)
+                    max_color = max(max_color, c2)
+                    max_color = max(max_color, c3)
                         
-                    min_color = min(min_color, r)
-                    min_color = min(min_color, g)
-                    min_color = min(min_color, b)
+                    min_color = min(min_color, c1)
+                    min_color = min(min_color, c2)
+                    min_color = min(min_color, c3)
             end do
             !$OMP END PARALLEL DO
 

@@ -190,23 +190,23 @@ contains
         ! $OMP & REDUCTION(max: this)
                 
         ! $OMP SECTION
-        this%scanline(1, location) = r
-        this%min_r = min(this%min_r, r)
-        this%max_r = max(this%max_r, r)
+        this%scanline(1, location) = a
+        this%min_r = min(this%min_r, a)
+        this%max_r = max(this%max_r, a)
 
         ! $OMP SECTION
-        this%scanline(2, location) = g
-        this%min_g = min(this%min_g, g)
-        this%max_g = max(this%max_g, g)
+        this%scanline(2, location) = b
+        this%min_g = min(this%min_g, b)
+        this%max_g = max(this%max_g, b)
 
         ! $OMP SECTION
-        this%scanline(3, location) = b
-        this%min_b = min(this%min_b, b)
-        this%max_b = max(this%max_b, b)
+        this%scanline(3, location) = c
+        this%min_b = min(this%min_b, c)
+        this%max_b = max(this%max_b, c)
         ! $OMP END SECTIONS
     end procedure tiff_write
 
-    module procedure tiff_commit
+    module procedure tiff_commit_rgb
         integer :: i
         integer :: current
         integer :: rc, error
@@ -250,7 +250,7 @@ contains
 
         deallocate(this%scanline)
         this%line_counter = this%line_counter + 1
-    end procedure tiff_commit
+    end procedure tiff_commit_rgb
 
     module procedure tiff_end
         integer :: current

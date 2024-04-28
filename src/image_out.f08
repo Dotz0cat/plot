@@ -28,60 +28,100 @@ module image_out
     public :: pfm_open
     public :: pfm_close
 
-    type, public :: tiff
+    type, abstract, public :: tiff
         private
         character(len=:), public, allocatable :: filename
         integer, public :: unit
 
         integer, public :: x_size, y_size
 
-        real, dimension(:,:), pointer :: scanline => NULL()
         integer, allocatable :: lines(:)
         integer, allocatable :: line_bytes(:)
         integer :: line_counter = 1
 
-        real(kind=real32) :: min_r = 0, min_g = 0, min_b = 0
-        real(kind=real32) :: max_r = 0, max_g = 0, max_b = 0
-
-        integer(kind=int32) :: strip_loc = 0, xres_loc = 0, yres_loc = 0, min_loc = 0, max_loc = 0, &
+        integer(kind=int32) :: strip_loc = 0, xres_loc = 0, yres_loc = 0, &
             & white_loc = 0, count_loc = 0, sample_loc = 0
-        integer(kind=int32) :: strip_tag = 0, xres_tag = 0, yres_tag = 0, min_tag = 0, max_tag = 0, &
+        integer(kind=int32) :: strip_tag = 0, xres_tag = 0, yres_tag = 0, &
             & white_tag = 0, count_tag = 0, sample_tag = 0
 
     contains
         procedure, public :: open => tiff_open
-        procedure, public :: header => tiff_header
-        procedure, public :: begin => tiff_begin
-        procedure, public :: write => tiff_write
-        procedure, public :: commit => tiff_commit
-        procedure, public :: end => tiff_end
+        procedure(header), deferred, public :: header
+        procedure(begin), deferred, public :: begin
+        procedure(write), deferred, public :: write
+        procedure(commit), deferred, public :: commit
+        procedure(end), deferred, public :: end
         procedure, public :: close => tiff_close
     end type tiff
 
-    !type, public :: rgb
-    !    integer, public :: r
-    !    integer, public :: g
-    !    integer, public :: b
-    !end type rgb
+    abstract interface
+        subroutine header(this)
+            import :: tiff
+            class(tiff), intent(inout) :: this
+        end subroutine header
 
-    ! $OMP DECLARE REDUCTION(min: rgb: &
-    ! $OMP &     omp_out = min(omp_out%r, omp_in%r) &
-    ! $OMP &     min(omp_out%g, omp_in%g) &
-    ! $OMP &     min(omp_out%b, omp_in%b) &
-    ! $OMP &     )
-    
-    ! $OMP DECLARE REDUCTION(max: type(tiff): &
-    ! $OMP &     omp_out%max_r = max(omp_out%max_r, omp_in%max_r) &
-    ! $OMP &     omp_out%max_g = max(omp_out%max_g, omp_in%max_g) &
-    ! $OMP &     omp_out%max_b = max(omp_out%max_b, omp_in%max_b) &
-    ! $OMP &     )
+        subroutine begin(this)
+            import :: tiff
+            class(tiff), intent(inout) :: this
+        end subroutine begin
+        
+        subroutine write(this, a, b, c, location)
+            import :: tiff
+            class(tiff), intent(inout) :: this
+            real, intent(in) :: a, b, c
+            integer, intent(in) :: location
+        end subroutine write
+
+        subroutine commit(this)
+            import :: tiff
+            class(tiff), intent(inout) :: this
+        end subroutine commit
+
+        subroutine end(this)
+            import :: tiff
+            class(tiff), intent(inout) :: this
+        end subroutine end
+    end interface
+
+    type, extends(tiff), public :: tiff_rgb
+        private
+        real, dimension(:,:), pointer :: scanline => NULL()
+
+        real(kind=real32) :: min_r = 0, min_g = 0, min_b = 0
+        real(kind=real32) :: max_r = 0, max_g = 0, max_b = 0
+
+        integer(kind=int32) :: min_loc = 0, max_loc = 0
+        integer(kind=int32) :: min_tag = 0, max_tag = 0
+
+    contains
+        !procedure, public :: open => tiff_open
+        procedure :: header => tiff_header
+        procedure :: begin => tiff_begin
+        procedure :: write => tiff_write
+        procedure :: commit => tiff_commit_rgb
+        procedure :: end => tiff_end
+        !procedure, public :: close => tiff_close
+    end type tiff_rgb
+
+    type, extends(tiff), public :: tiff_logluv
+        private
+        integer(kind=int32), dimension(:), pointer :: scanline => NULL()
+    contains
+        !procedure, public :: open => tiff_open
+        procedure :: header => tiff_header_logluv
+        procedure :: begin => tiff_begin_logluv
+        procedure :: write => tiff_write_logluv
+        procedure :: commit =>tiff_commit_logluv
+        procedure :: end => tiff_end_logluv
+        !procedure, public :: close => tiff_close
+    end type tiff_logluv
 
     public :: tiff_open
-    public :: tiff_header
-    public :: tiff_begin
-    public :: tiff_write
-    public :: tiff_commit
-    public :: tiff_end
+    public :: tiff_header, tiff_header_logluv
+    public :: tiff_begin, tiff_begin_logluv
+    public :: tiff_write, tiff_write_logluv
+    public :: tiff_commit_rgb, tiff_commit_logluv
+    public :: tiff_end, tiff_end_logluv
     public :: tiff_close
 
     interface pfm_write
@@ -139,35 +179,67 @@ module image_out
 
     interface tiff_header
         module subroutine tiff_header(this)
-            class(tiff), intent(inout) :: this
+            class(tiff_rgb), intent(inout) :: this
         end subroutine tiff_header
     end interface tiff_header
+    
+    interface tiff_header_logluv
+        module subroutine tiff_header_logluv(this)
+            class(tiff_logluv), intent(inout) :: this
+        end subroutine tiff_header_logluv
+    end interface tiff_header_logluv
 
     interface tiff_begin
         module subroutine tiff_begin(this)
-            class(tiff), intent(inout) :: this
+            class(tiff_rgb), intent(inout) :: this
         end subroutine tiff_begin
     end interface tiff_begin
+    
+    interface tiff_begin_logluv
+        module subroutine tiff_begin_logluv(this)
+            class(tiff_logluv), intent(inout) :: this
+        end subroutine tiff_begin_logluv
+    end interface tiff_begin_logluv
 
     interface tiff_write
-        module subroutine tiff_write(this, r, g, b, location)
-            class(tiff), intent(inout) :: this
-            real, intent(in) :: r, g, b
+        module subroutine tiff_write(this, a, b, c, location)
+            class(tiff_rgb), intent(inout) :: this
+            real, intent(in) :: a, b, c
             integer, intent(in) :: location
         end subroutine tiff_write
     end interface tiff_write
+    
+    interface tiff_write_logluv
+        module subroutine tiff_write_logluv(this, a, b, c, location)
+            class(tiff_logluv), intent(inout) :: this
+            real, intent(in) :: a, b, c
+            integer, intent(in) :: location
+        end subroutine tiff_write_logluv
+    end interface tiff_write_logluv
 
-    interface tiff_commit
-        module subroutine tiff_commit(this)
-            class(tiff), intent(inout) :: this
-        end subroutine tiff_commit
-    end interface tiff_commit
-
+    interface tiff_commit_rgb
+        module subroutine tiff_commit_rgb(this)
+            class(tiff_rgb), intent(inout) :: this
+        end subroutine tiff_commit_rgb
+    end interface tiff_commit_rgb
+    
+    interface tiff_commit_logluv
+        module subroutine tiff_commit_logluv(this)
+            class(tiff_logluv), intent(inout) :: this
+        end subroutine tiff_commit_logluv
+    end interface tiff_commit_logluv
+    
     interface tiff_end
         module subroutine tiff_end(this)
-            class(tiff), intent(inout) :: this
+            class(tiff_rgb), intent(inout) :: this
         end subroutine tiff_end
     end interface tiff_end
+    
+    interface tiff_end_logluv
+        module subroutine tiff_end_logluv(this)
+            class(tiff_logluv), intent(inout) :: this
+        end subroutine tiff_end_logluv
+    end interface tiff_end_logluv
 
     interface tiff_close
         module subroutine tiff_close(this)

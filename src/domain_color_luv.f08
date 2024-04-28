@@ -22,11 +22,10 @@ submodule (domain_color) domain_color_luv_space
         & [0.95047, 1.0, 1.08883]
 
     real, save, dimension(3, 3) :: srgb_conversion_matrix = reshape( &
-        & [3.2404542, -1.5371385, -0.4985314, &
-        & -0.9692660, 1.8760108, 0.0415560, &
-        & 0.0556434, -0.2040259, 1.0572252], &
+        & [3.2404542, -0.9692660,  0.0556434,  &
+        & -1.5371385,  1.8760108, -0.2040259,  &
+        & -0.4985314,  0.0415560,  1.0572252], &
         & [3, 3] )
-
 
 contains
     module procedure domain_color_luv
@@ -35,19 +34,24 @@ contains
         real :: lum
         real :: u_vec
         real :: v_vec
+        real :: u_naught
+        real :: v_naught
 
         hue = arg
 
-        chroma = 50.0 * (sin(mod)**2.0) + 50.0
+        chroma = 50.0 * (sin(mod)**2) + 50.0
 
         u_vec = chroma * cos(hue)
         v_vec = chroma * sin(hue)
 
-        lum = 25.0 * (sin(mod)**2.0) + 25.0
-                
+        lum = 25.0 * (sin(mod)**2) + 25.0
+        
+        u_naught = (4.0 * d65(1))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
+        v_naught = (9.0 * d65(2))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
+        
         l = lum
-        u = u_vec
-        v = v_vec
+        u = (u_vec / (13.0*lum) + u_naught)
+        v = (v_vec / (13.0*lum) + v_naught)
     end procedure domain_color_luv
 
     module procedure domain_color_srgb
@@ -59,40 +63,32 @@ contains
         real :: u_naught
         real :: v_naught
         real :: a, b2, c, d
-        real, dimension(3) :: d65 = &
-            & [0.95047, 1.0, 1.08883]
 
         real, dimension(3) :: rgb_vec, xyz_vec
 
-        real, dimension(3, 3) :: conv_vec = reshape( &
-            & [3.2404542, -1.5371385, -0.4985314, &
-            & -0.9692660, 1.8760108, 0.0415560, &
-            & 0.0556434, -0.2040259, 1.0572252], &
-            & [3, 3] )
-
         hue = arg
 
-        chroma = 50.0 * (sin(mod)**2.0) + 50.0
+        chroma = 50.0 * (sin(mod)**2) + 50.0
 
         u_vec = chroma * cos(hue)
         v_vec = chroma * sin(hue)
 
-        lum = 25.0 * (sin(mod)**2.0) + 25.0
+        lum = 25.0 * (sin(mod)**2) + 25.0
 
         u_naught = (4.0 * d65(1))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
         v_naught = (9.0 * d65(2))/(d65(1) + (15.0 * d65(2)) + (3.0 * d65(3)))
 
         xyz_vec(2) = piecewise_luv(lum)
                 
-        d = xyz_vec(2) * ((39.0 * lum)/(v_vec + (13.0 * lum * v_naught)) - 5)
+        d = xyz_vec(2) * ((39.0 * lum)/(v_vec + (13.0 * lum * v_naught)) - 5.0)
         b2 = -5.0 * xyz_vec(2)
-        a = (1.0/3.0) * ((52.0 * lum)/(u_vec + (13.0 * lum * u_naught)) - 1)
+        a = (1.0/3.0) * ((52.0 * lum)/(u_vec + (13.0 * lum * u_naught)) - 1.0)
         c = -(1.0/3.0)
 
         xyz_vec(1) = (d - b2)/(a - c)
         xyz_vec(3) = (xyz_vec(1) * a) + b2
                 
-        rgb_vec = matmul(xyz_vec,  conv_vec)
+        rgb_vec = matmul(xyz_vec,  srgb_conversion_matrix)
 
         r = rgb_vec(1)
         g = rgb_vec(2)
