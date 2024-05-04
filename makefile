@@ -1,8 +1,19 @@
+#compile with FC
+#I have tried and tested it with gfortran
 FC = gfortran
-CFLAGS := -O2 -g -Wall -fopenmp -flto
-#-fsanitize=address
-CPPFLAGS = $(shell pkg-config --cflags blas fortran-zlib)
-LDLIBS = $(shell pkg-config --libs blas fortran-zlib)
+#Compiler options
+#I normally compile with -O2
+#I have had good results with -flto too
+#debug builds with -g
+CFLAGS := -O2 -Wall -fopenmp
+#The only full dependance is on fortran-zlib
+#it provides the compression for rgb tiffs
+#hardcode the cppflags and ldlibs for fortran-zlib.
+#just patch it to your location
+CPPFLAGS = $(shell pkg-config --cflags blas)
+CPPFLAGS += -I/usr/include/ -I/usr/include/fortran-zlib/GNU-13.2.1/
+LDLIBS = $(shell pkg-config --libs blas)
+LDLIBS += -L/usr/lib/ -lfortran-zlib -lz
 
 SRCDIR = src
 OBJDIR = obj
