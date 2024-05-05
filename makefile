@@ -26,29 +26,29 @@ build: $(OBJDIR) $(OBJS)
 $(OBJDIR):
 	@mkdir $(OBJDIR)
 
-$(OBJDIR)/main.o: $(SRCDIR)/main.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -I$(OBJDIR) -c $(SRCDIR)/main.f08 -o $@
+$(OBJDIR)/main.o: $(SRCDIR)/main.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -I$(OBJDIR) -c $(SRCDIR)/main.f90 -o $@
 
-$(OBJDIR)/image_out.o: $(SRCDIR)/image_out.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/image_out.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/image_out.o: $(SRCDIR)/image_out.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/image_out.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/pfm.o: $(OBJDIR)/image_out.o $(SRCDIR)/pfm.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/pfm.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/pfm.o: $(OBJDIR)/image_out.o $(SRCDIR)/pfm.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/pfm.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/tiff.o: $(OBJDIR)/image_out.o $(SRCDIR)/tiff.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/tiff.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/tiff.o: $(OBJDIR)/image_out.o $(SRCDIR)/tiff.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/tiff.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/tiff_logluv.o: $(OBJDIR)/image_out.o $(SRCDIR)/tiff_logluv.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/tiff_logluv.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/tiff_logluv.o: $(OBJDIR)/image_out.o $(SRCDIR)/tiff_logluv.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/tiff_logluv.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/domain_color.o: $(SRCDIR)/domain_color.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/domain_color.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/domain_color.o: $(SRCDIR)/domain_color.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/domain_color.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/domain_color_luv.o: $(OBJDIR)/domain_color.o $(SRCDIR)/domain_color_luv.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/domain_color_luv.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/domain_color_luv.o: $(OBJDIR)/domain_color.o $(SRCDIR)/domain_color_luv.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/domain_color_luv.f90 -o $@ -J$(OBJDIR)
 
-$(OBJDIR)/test_functions.o: $(SRCDIR)/test_functions.f08
-	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/test_functions.f08 -o $@ -J$(OBJDIR)
+$(OBJDIR)/test_functions.o: $(SRCDIR)/test_functions.f90
+	$(FC) $(CFLAGS) $(CPPFLAGS) -c $(SRCDIR)/test_functions.f90 -o $@ -J$(OBJDIR)
 
 PHONEY: clean
 

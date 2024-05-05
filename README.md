@@ -2,7 +2,7 @@
 
 A complex plotting program made in modern fortran
 
-Everything is controlled in main.f08.
+Everything is controlled in main.f90.
 
 ## Examples
 
