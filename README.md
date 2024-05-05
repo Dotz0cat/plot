@@ -4,6 +4,12 @@ A complex plotting program made in modern fortran
 
 Everything is controlled in main.f08.
 
+## Examples
+
+| Taubin Heart | Identity |
+| --- | --- |
+| <img src="https://github.com/Dotz0cat/plot/blob/master/taubin_heart_example.jpg?raw=true" height="200" width="200" alt="taubin heart made with plot"/> | <img src="https://github.com/Dotz0cat/plot/blob/master/identity_example.jpg?raw=true" height="200" width="200" alt="identity made with plot"/> |
+
 ## Variables
 * `start` - starting point for the plot \(usually negitive\)
 * `stop` - stoping point for the plot \(usually positive\)
