@@ -19,6 +19,7 @@ program plot
     use image_out
     use domain_color
     use test_functions
+    use iso_fortran_env, only: int64
     implicit none
        
     real :: x
@@ -28,48 +29,57 @@ program plot
 
     real :: c1, c2, c3
 
-    real :: start = -2
-    real :: quit = 2
+    real, parameter :: x_start = -2
+    real, parameter :: x_quit = 2
+    real, parameter :: y_start = -2
+    real, parameter :: y_quit = 2
+    real, parameter :: im_start = -2
+    real, parameter :: im_quit = 2
 
     integer :: i
     integer :: j
     integer :: k
-    integer :: steps = 2000
-        
-    real :: step
-    real :: max_color
-    real :: min_color
+
+    integer, parameter :: x_steps = 2000
+    integer, parameter :: y_steps = 2000
+    integer, parameter :: im_steps = 2000
+
+    real, parameter :: x_step = (abs(x_start) + abs(x_quit)) / x_steps
+    real, parameter :: y_step = (abs(y_start) + abs(y_quit)) / y_steps
+    real, parameter :: im_step = (abs(im_start) + abs(im_quit)) / im_steps
+
+    integer(kind=int64) :: start_time
+    integer(kind=int64) :: end_time
+    integer(kind=int64) :: tick_rate
 
     type(tiff_logluv), allocatable :: tiff_obj
 
-    max_color = 0
-    min_color = 0
+    call system_clock(count_rate=tick_rate)
         
-    step = (abs(start) + abs(quit)) / steps
-        
-    !$OMP PARALLEL DO PRIVATE (x, y, i, j, im, tiff_obj) FIRSTPRIVATE(min_color, max_color)
+    !$OMP PARALLEL DO PRIVATE (x, y, i, j, im, tiff_obj, start_time, end_time)
     do k=1, 1
 
         allocate(tiff_obj)
 
-        tiff_obj%x_size = steps
-        tiff_obj%y_size = steps
+        call system_clock(start_time)
 
-        !im = start + (k * step)
+        tiff_obj%x_size = x_steps
+        tiff_obj%y_size = y_steps
+
+        !im = im_start + (k * im_step)
         im = 0
         
         call tiff_obj%open(k)
         call tiff_obj%header()
         
-        do i=1, steps
-            y = quit - (i * step)
+        do i=1, y_steps
+            y = y_quit - (i * y_step)
 
             call tiff_obj%begin()
                 
-            !$OMP PARALLEL DO PRIVATE (x, j, z, c1, c2, c3) SHARED (y, tiff_obj) &
-            !$OMP & REDUCTION(min: min_color) REDUCTION(max: max_color)
-            do j=1, steps
-                x = start + (j * step)
+            !$OMP PARALLEL DO PRIVATE (x, j, z, c1, c2, c3) SHARED (y, tiff_obj)
+            do j=1, x_steps
+                x = x_start + (j * x_step)
                         
                 !z = identity(x, y)
                         
@@ -89,14 +99,6 @@ program plot
 
                     call tiff_obj%write(c1, c2, c3, j)
                 end if
-
-                    max_color = max(max_color, c1)
-                    max_color = max(max_color, c2)
-                    max_color = max(max_color, c3)
-                        
-                    min_color = min(min_color, c1)
-                    min_color = min(min_color, c2)
-                    min_color = min(min_color, c3)
             end do
             !$OMP END PARALLEL DO
 
@@ -107,13 +109,12 @@ program plot
 
         call tiff_obj%close()
 
+        call system_clock(end_time)
+
         print *, tiff_obj%filename
-
-        print *, 'max: ', max_color
-        print *, 'min: ', min_color
-
+        print *, 'elapsed: ', real(end_time-start_time)/real(tick_rate), ' seconds'
         print *, ''
-        
+
         deallocate(tiff_obj)
 
     end do
